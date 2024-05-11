@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Weather Dashboard</title>
+    <!-- Include Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f0f0f0;
+        }
+
+        canvas {
+            width: 80%;
+            height: 100px; /* Adjust as needed */
+        }
+        .container {
+            max-width: 100%;
+            margin: 10px auto;
+            padding: 20px;
+            background-color: #fff;
+            border-radius: 5px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+        }
+
+        h1 {
+            text-align: center;
+        }
+
+        #weather-chart-container {
+          
+            margin-bottom: 20px;
+            
+           
+        }
+
+        .weather-card {
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            margin-bottom: 10px;
+            padding: 10px;
+            display: flex;
+            align-items: center;
+        }
+
+        .weather-card .day {
+            flex: 1;
+            font-weight: bold;
+        }
+
+        .weather-card .icon {
+            flex: 1;
+            text-align: center;
+        }
+
+        .weather-card .description {
+            flex: 2;
+        }
+
+        .weather-card .temperature,
+        .weather-card .humidity,
+        .weather-card .wind,
+        .weather-card .pressure {
+            flex: 1;
+            font-size: 0.9em;
+        }
+
+        /* Dark Mode Styles */
+        .dark-mode body {
+            background-color: #222;
+            color: #fff;
+        }
+
+        .dark-mode .container {
+            background-color: #333;
+        }
+
+        .dark-mode .weather-card {
+            border-color: #555;
+            background-color: #444;
+            color: #fff;
+        }
+        
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>5-Day Weather Forecast Insights</h1>
+        <div id="weather-chart-container" >
+            <canvas id="weather-chart">
+                
+            </canvas>
+            <canvas id="wind-chart" style="margin-top: 20px;"></canvas> <!-- New canvas for wind chart -->
+            <canvas id="humidity-chart" style="margin-top: 20px;"></canvas> <!-- New canvas for humidity doughnut chart -->
+        </div>
+        <div id="weather-details"></div>
+        <button class="toggle-button" onclick="toggleDarkMode()">Toggle Dark Mode</button>
+    </div>
+
+    <script>
+        
+        // Function to fetch weather data from the API
+        async function fetchWeatherData() {
+            try {
+              
+                const response = await fetch(`https://api.openweathermap.org/data/2.5/forecast?lat=44.34&lon=10.99&appid=932ff401b722db968dc2c5c9a3f5ed38`);
+                const data = await response.json();
+                return data.list;
+            } catch (error) {
+                console.error('Error fetching weather data:', error);
+            }
+        }
+
+        // Function to parse and visualize weather data
+        async function visualizeWeatherData() {
+            const weatherData = await fetchWeatherData();
+
+            // Extract necessary data from API response
+            const labels = weatherData.map(day => day.dt_txt);
+            const temperatures = weatherData.map(day => day.main.temp - 273.15); // Convert from Kelvin to Celsius
+            const humidities = weatherData.map(day => day.main.humidity);
+            const windSpeeds = weatherData.map(day => day.wind.speed);
+            const pressures = weatherData.map(day => day.main.pressure);
+            const descriptions = weatherData.map(day => day.weather[0].description);
+            const icons = weatherData.map(day => day.weather[0].icon);
+
+            // Create temperature chart
+            const ctx = document.getElementById('weather-chart').getContext('2d');
+            const weatherChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'Temperature (°C)',
+                        data: temperatures,
+                        borderColor: 'rgba(255, 99, 132, 1)',
+                        backgroundColor: 'rgba(255, 99, 132, 0.2)',
+                        yAxisID: 'temperature-y-axis'
+                    }, {
+                        label: 'Humidity (%)',
+                        data: humidities,
+                        borderColor: 'rgba(54, 162, 235, 1)',
+                        backgroundColor: 'rgba(54, 162, 235, 0.2)',
+                        yAxisID: 'humidity-y-axis'
+                    }]
+                },
+                options: {
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            title: {
+                                display: true,
+                                text: 'Temperature (°C) / Humidity (%)'
+                            }
+                        }
+                    }
+                }
+            });
+
+            // Create wind speed bar chart
+            const windCtx = document.getElementById('wind-chart').getContext('2d');
+            const windChart = new Chart(windCtx, {
+                type: 'bar',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'Wind Speed (m/s)',
+                        data: windSpeeds,
+                        backgroundColor: 'rgba(75, 192, 192, 0.2)',
+                        borderColor: 'rgba(75, 192, 192, 1)',
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            title: {
+                                display: true,
+                                text: 'Wind Speed (m/s)'
+                            }
+                        }
+                    }
+                }
+            });
+
+            // Create humidity doughnut chart
+            const humidityCtx = document.getElementById('humidity-chart').getContext('2d');
+            const humidityChart = new Chart(humidityCtx, {
+                type: 'radar',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'Humidity (%)',
+                        data: humidities,
+                        backgroundColor: [
+                            'rgba(255, 99, 132, 0.5)',
+                            'rgba(54, 162, 235, 0.5)',
+                            'rgba(255, 206, 86, 0.5)',
+                            'rgba(75, 192, 192, 0.5)',
+                            'rgba(153, 102, 255, 0.5)'
+                        ],
+                        borderColor: [
+                            'rgba(255, 99, 132, 1)',
+                            'rgba(54, 162, 235, 1)',
+                            'rgba(255, 206, 86, 1)',
+                            'rgba(75, 192, 192, 1)',
+                            'rgba(153, 102, 255, 1)'
+                        ],
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            title: {
+                                display: true,
+                                text: 'Humidity (%)'
+                            }
+                        }
+                    }
+                }
+            });
+
+            // Display weather details
+            const weatherDetails = document.getElementById('weather-details');
+            weatherDetails.innerHTML = '';
+            weatherData.forEach((day, index) => {
+                const card = document.createElement('div');
+                card.classList.add('weather-card');
+                card.innerHTML = `
+                    <div class="day">${day.dt_txt}</div>
+                    <div class="icon"><img src="http://openweathermap.org/img/wn/${icons[index]}.png" alt="${descriptions[index]}"></div>
+                    <div class="description">${descriptions[index]}</div>
+                    <div class="temperature">Temperature: ${temperatures[index].toFixed(1)}°C</div>
+                    <div class="humidity">Humidity: ${humidities[index]}%</div>
+                    <div class="wind">Wind Speed: ${windSpeeds[index]} m/s</div>
+                    <div class="pressure">Pressure: ${pressures[index]} hPa</div>
+                `;
+                weatherDetails.appendChild(card);
+            });
+        }
+
+        // Call the function to visualize weather data
+        visualizeWeatherData();
+
+        // Function to toggle dark mode
+        function toggleDarkMode() {
+            document.body.classList.toggle('dark-mode');
+        }
+    </script>
+</body>
+</html>
